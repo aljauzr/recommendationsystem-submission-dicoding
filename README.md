@@ -99,7 +99,7 @@ Output:
 ['(no genres listed)', 'Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror', 'IMAX', 'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western']
 ```
 
-Terdapat 20 jenis genre berbeda dengan nama genre seperti terlihat pada output kode. Perhatikanlah jenis-jenis genre di atas. Pada modul selanjutnya kita akan gunakan data genre ini untuk memprediksi top-N rekomendasi bagi pengguna.
+Terdapat 20 jenis genre berbeda dengan nama genre seperti terlihat pada output kode. Perhatikanlah jenis-jenis genre di atas. Pada tahap selanjutnya kita akan gunakan data genre ini untuk memprediksi top-N rekomendasi bagi pengguna.
 Naumn, terdapat nilai kolom genre = (no genres listed), artinya ada film yang genrenya tidak diketahui. Maka dari itu, kita akan memeriksa terlebih dahulu ada berapa film dengan kondisi tersebut. Terapkan kode berikut.
 ```sh
 # Filter film yang tidak memiliki genre (no genres listed)
@@ -127,7 +127,7 @@ Output:
 
 Berikut adalah penjelasan dari kolom yang ada:
 - `movieId` : merupakan nilai identifier pada URL: https://movielens.org/movies/{movieId}
-- `imdbId` :  merupakan nilai identifier pada URL: http://www.imdb.com/title/`{imdbId}
+- `imdbId` :  merupakan nilai identifier pada URL: http://www.imdb.com/title/{imdbId}
 - `tmdbId` : merupakan nilai identifier pada URL: https://www.themoviedb.org/movie/{tmdbId}.
 
 Pada kolom tmdbId, terdapat 8 baris yang kosong, namun karena kolom ini tidak diikutsertakan dalam proses perhitungan, maka dapat kita biarkan saja. Untuk melihat sampel datanya, mari kita terapkan fungsi head().
@@ -137,11 +137,13 @@ links.head()
 Output:
 | movieId | imdbId | tmdbId |
 | ------ | ------ | ------ |
-| 0	| 1 | 114709 | 862.0 |
-| 1 | 2 | 113497 | 8844.0 |
-| 2 | 3 | 113228 | 15602.0 |
-| 3 | 4 | 114885 | 31357.0 |
-| 4 | 5	| 113041 | 11862.0 |
+| 1 | 114709 | 862.0 |
+| 2 | 113497 | 8844.0 |
+| 3 | 113228 | 15602.0 |
+| 4 | 114885 | 31357.0 |
+| 5	| 113041 | 11862.0 |
+
+Berdasarkan output baris pertama, movieId = 1 memiliki link movielens https://movielens.org/movies/1, link imdb http://www.imdb.com/title/114709, dan link tmdb https://www.themoviedb.org/movie/862. Demikian seterusnya.
 
 ### EDA - Univariate Analysis (tags)
 Selanjutnya, kita eksplorasi variabel tags, yaitu tag pada film yang diberikan pengguna. Mari kita lihat kolom yang terdapat pada tags menggunakan fungsi info().
@@ -177,7 +179,108 @@ Output:
 
 Baris ke-1 dari output di atas memberikan arti bahwa user dengan userId = 2 memberikan tag 'funny' ke film dengan movieId = 60756 pada 24 Oktober 2015 pukul 14:49:54 UTC (setelah dikonversi dari UNIX timestamp).
 
+### EDA - Univariate Analysis (user)
 Selanjutnya, kita eksplorasi variabel user. Namun, pada dataset ini user tidak memiliki file .csv nya sendiri. Pada ratings.csv, terdapat kolom userId, kolom ini akan kita gunakan untuk mengidentifikasi jumlah user yang telah memberikan rating terhadap film. Terapkan kode berikut.
+```sh
+print('Jumlah user yang memberikan rating: ', len(ratings.userId.unique()))
+```
+Output:
+```sh
+Jumlah user yang memberikan rating:  610
+```
+Berdasarkan output di atas, diketahui terdapat 610 user yang telah memberikan rating terhadap film. Data ini akan digunakan untuk tahap modelling dengan Collaborative Filtering.
+Pada tahap modelling dengan Content-Based Filtering nanti, data yang dibutuhkan adalah judul film dan genre. Kita akan menghitung kesamaan (similarity) genre dan judul film kemudian membuat rekomendasi berdasarkan kesamaan ini.
+
+### EDA - Univariate Analysis (ratings)
+Selanjutnya, mari kita eksplorasi data yang akan kita gunakan pada model yaitu data ratings. Pertama, kita lihat seperti apa data pada variabel rating dengan fungsi head().
+```sh
+ratings.head()
+```
+Output:
+| userId | movieId | rating | timestamp |
+| ------ | ------ | ------ | ------ |
+| 1 | 1	| 4.0 |	964982703 |
+| 1	| 3	| 4.0	| 964981247 |
+| 1	| 6	| 4.0 |	964982224 |
+| 1	| 47 | 5.0 | 964983815 |
+| 1	| 50 | 5.0 | 964982931 |
+
+Dari fungsi rating.head(), kita dapat mengetahui bahwa data rating terdiri dari 4 kolom. Kolom-kolom tersebut antara lain:
+
+- `userId` : merupakan ID user
+- `movieId` : merupakan ID film
+- `rating` : merupakan data rating yang diberikan user terhadap film
+- `timestamp` : merupakan waktu ketika pengguna memberikan rating terhadap sebuah film. Nilainya berupa angka dalam format UNIX timestamp, yaitu jumlah detik sejak 1 Januari 1970 (epoch time)
+
+Untuk melihat distribusi rating pada data, gunakan fungsi describe() dengan menerapkan kode berikut:
+```sh
+ratings.describe()
+```
+Output:
+| | userId | movieId | rating | timestamp |
+| ------ | ------ | ------ | ------ | ------ |
+| count	| 100836.000000 | 100836.000000 | 100836.000000 | 1.008360e+05 |
+| mean | 326.127564 | 19435.295718 | 3.501557 |	1.205946e+09 |
+| std |	182.618491 | 35530.987199 |	1.042529 | 2.162610e+08 |
+| min | 1.000000 | 1.000000 | 0.500000 | 8.281246e+08 |
+| 25% | 177.000000 | 1199.000000 | 3.000000 | 1.019124e+09 |
+| 50% | 325.000000 | 2991.000000 | 3.500000 | 1.186087e+09 |
+| 75% | 477.000000 | 8122.000000 | 4.000000 | 1.435994e+09 |
+| max | 610.000000 | 193609.000000 | 5.000000 |	1.537799e+09 |
+
+Dari output di atas, diketahui bahwa terdapat 100836 total rating dan nilai maksimum rating adalah 5 dan nilai minimumnya adalah 0.5. Artinya, skala rating berkisar antara 0.5 hingga 5. 
+Sampai di tahap ini, kita telah memahami variabel-variabel pada data yang kita miliki.
+
+### Data Preprocessing - Memeriksa Missing Value pada Rating
+Untuk memeriksa apakah terdapat missing value, jalankan kode berikut.
+```sh
+ratings.isnull().sum()
+```
+Output:
+| | 0 |
+| ------ | ------ |
+| userId | 0 |
+| movieId |	0 |
+| rating | 0 |
+| timestamp | 0 |
+| title	| 0 |
+| genres | 0 |
+
+Tidak ada missing value yang ditemukan, kita dapat lanjut ke tahap berikutnya.
+
+### Data Preprocessing - Menggabungkan Data Rating dengan Fitur Genre Film
+Langkah selanjutnya adalah menggabungkan variabel ratings dengan variabel movies, yaitu metadata film yang mengandung judul film dan genrenya. Implementasikan kode berikut.
+```sh
+movies_ratings = pd.merge(ratings, movies, on='movieId', how='left')
+movies_ratings
+```
+Output:
+| userId | movieId | rating | timestamp | title | genres |
+| ------ | ------ | ------ | ------ | ------ | ------ |
+| 1 | 1	| 4.0 |	964982703 |	Toy Story (1995) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| 1	| 3	| 4.0 |	964981247 |	Grumpier Old Men (1995) | Comedy\|Romance |
+| 1	| 6	| 4.0 |	964982224 |	Heat (1995)	| Action\|Crime\|Thriller |
+| 1	| 47 | 5.0 | 964983815 | Seven (a.k.a. Se7en) (1995) | Mystery\|Thriller |
+| 1	| 50 | 5.0 | 964982931 | Usual Suspects, The (1995) | Crime\|Mystery\|Thriller |
+| ... | ... | ... | ... | ... | ... |
+
+Inilah data yang akan kita gunakan untuk membuat sistem rekomendasi. Namun, sebagai trivia, kita akan mencari tahu film apa yang memiliki rating tertinggi, jalankan kode berikut:
+```sh
+movies_ratings[['movieId', 'title', 'rating']].groupby(['movieId', 'title']).sum().reset_index().sort_values(by='rating', ascending=False)
+```
+Output:
+|  | movieId | title | rating |
+| ------ | ------ | ------ | ------ |
+| 277 |	318	| Shawshank Redemption, The (1994) | 1404.0 |
+| 314 |	356	| Forrest Gump (1994) | 1370.0 |
+| 257 |	296	| Pulp Fiction (1994) | 1288.5 |
+| 1938 | 2571 | Matrix, The (1999) | 1165.5 |
+| 510 |	593	| Silence of the Lambs, The (1991) | 1161.0 |
+| ... |	... | ... |	... |
+
+Film yang paling banyak mendapatkan rating adalah film The Shawshank Redemption (1994) dengan jumlah rating 1404. Sebaliknya, film yang paling sedikit mendapatkan jumlah rating adalah fillm Lionheart (1990) dengan jumlah rating 0.5.
+
+Berikutnya, mari kita menuju tahapan Data Preparation.
 
 ## Data Preparation
 Pada bagian ini Anda menerapkan dan menyebutkan teknik data preparation yang dilakukan. Teknik yang digunakan pada notebook dan laporan harus berurutan.
