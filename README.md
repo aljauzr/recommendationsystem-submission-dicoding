@@ -283,18 +283,259 @@ Film yang paling banyak mendapatkan rating adalah film The Shawshank Redemption 
 Berikutnya, mari kita menuju tahapan Data Preparation.
 
 ## Data Preparation
-Pada bagian ini Anda menerapkan dan menyebutkan teknik data preparation yang dilakukan. Teknik yang digunakan pada notebook dan laporan harus berurutan.
 
-**Rubrik/Kriteria Tambahan (Opsional)**: 
-- Menjelaskan proses data preparation yang dilakukan
-- Menjelaskan alasan mengapa diperlukan tahapan data preparation tersebut.
+### Mengatasi Missing Value
+Pada tahap EDA - Univariate Analysis (movies), kita mendapat informasi 'Jumlah film yang tidak memiliki genre (no genres listed): 34'. Informasi tersebut akan kita tangani dalam tahap ini, yaitu dengan cara menghapus baris yang memiliki genre '(no genres listed)'. Terapkan kode berikut.
+```sh
+movies_ratings = movies_ratings[movies_ratings['genres'] != '(no genres listed)']
+```
+Setelah menjalankan kode tersebut, data movies_ratings yang sebelumnya memiliki 100836 baris, sekarang menjadi 100789 baris. Mari kita cek kembali datanya apakah ada missing value atau tidak. Jalankan kode berikut.
+```sh
+movies_ratings.isnull().sum()
+```
+Output:
+|  | 0 |
+| ------ | ------ |
+| userId | 0 |
+| movieId |	0 |
+| rating | 0 |
+| timestamp | 0 |
+| title | 0 |
+| genres | 0 |
+
+Ok, sekarang data kita sudah bersih. Mari lanjutkan ke tahap berikutnya!
+
+### Mempersiapkan Data
+Dalam sistem rekomendasi berbasis Content Based Filtering, penting untuk memastikan satu film memiliki satu baris nilai genre (bisa terdiri dari satu genre atau beberapa genre yang dipisahkan oleh tanda '|'). Tujuannya agar sistem dapat merekomendasikan film yang mirip dengan yang disukai user sebelumnya dan tidak terjadi dobel atau rangkap kategori dalam satu film. Dalam model CBF, kita hanya butuh 1 baris per film untuk mengambil fitur filmnya — tidak perlu semua rating dari user. Maka dari itu, kita perlu menghapus nilai kolom movieId yang duplikat dari dataframe movie_ratings.
+
+Sedangkan untuk model Collaborative Filtering, nanti kita akan tetap mempertahankan dataframe movies_ratings.
+
+Berikutnya, kita bisa melanjutkan ke tahap persiapan. Buatlah variabel bernama preparation yang dikhususkan untuk model Content Based Filtering. Jalankan kode berikut.
+```sh
+preparation = movies_ratings
+preparation.sort_values('movieId')
+```
+Output:
+| userId | movieId | rating | timestamp | title | genres |
+| ------ | ------ | ------ | ------ | ------ | ------ |
+| 469 | 1 | 4.0 | 965336888 | Toy Story (1995) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| 584 | 1 | 5.0 | 834987643 |	Toy Story (1995) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| 391 | 1 | 3.0 | 1032388077 | Toy Story (1995) |	Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| 533 |	1 |	5.0 | 1424753740 | Toy Story (1995) |	Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| 380 |	1 |	5.0 | 1493420345 | Toy Story (1995) |	Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| ... |	... | ... |	... | ... |	... |
+
+Selanjutnya, kita hanya akan menggunakan data unik untuk dimasukkan ke dalam proses pemodelan. Oleh karena itu, kita perlu menghapus data yang duplikat dengan fungsi drop_duplicates(). Dalam hal ini, kita membuang data duplikat pada kolom ‘movieId’. Implementasikan kode berikut.
+```sh
+preparation = preparation.drop_duplicates('movieId')
+```
+Setelah menjalankan kode tersebut, data preparation yang sebelumnya memiliki 100789 baris, sekarang menjadi 9690 baris. Selanjutnya, kita perlu melakukan konversi data series menjadi list. Dalam hal ini, kita menggunakan fungsi tolist() dari library numpy. Implementasikan kode berikut.
+```sh
+movie_id = preparation['movieId'].tolist()
+movie_title = preparation['title'].tolist()
+movie_genres = preparation['genres'].tolist()
+```
+Tahap berikutnya, kita akan membuat dictionary untuk menentukan pasangan key-value pada data movie_id, movie_title, dan movie_genres yang telah kita siapkan sebelumnya.
+```sh
+movie_new = pd.DataFrame({
+    'id': movie_id,
+    'movie_title': movie_title,
+    'movie_genres': movie_genres
+})
+```
+Output:
+| id | movie_title | movie_genres |
+| ------ | ------ | ------ |
+| 1	| Toy Story (1995) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| 3	| Grumpier Old Men (1995) |	Comedy\|Romance |
+| 6	| Heat (1995) | Action\|Crime\|Thriller |
+| 47 | Seven (a.k.a. Se7en) (1995) | Mystery\|Thriller |
+| 50 | Usual Suspects, The (1995) |	Crime\|Mystery\|Thriller |
+
+Okay, data kini telah siap untuk dimasukkan ke dalam pemodelan. Yuk, kita lanjut ke tahap berikutnya!
 
 ## Modeling
-Tahapan ini membahas mengenai model sisten rekomendasi yang Anda buat untuk menyelesaikan permasalahan. Sajikan top-N recommendation sebagai output.
+Pada tahap Modelling, kita akan menggunakan dua pendekatan, yaitu **Content-Based Filtering** dan **Collaborative Filtering**.
 
-**Rubrik/Kriteria Tambahan (Opsional)**: 
-- Menyajikan dua solusi rekomendasi dengan algoritma yang berbeda.
-- Menjelaskan kelebihan dan kekurangan dari solusi/pendekatan yang dipilih.
+Pada Content-Based Filtering, rekomendasi film diberikan berdasarkan kemiripan konten dengan film yang telah diberi rating oleh pengguna. Oleh karena itu, kita akan menerapkan teknik TF-IDF untuk mengubah informasi genre menjadi representasi numerik, kemudian menghitung cosine similarity antar film berdasarkan kesamaan genre tersebut. Dengan begitu, kita dapat mengetahui seberapa mirip suatu film dengan film lain yang disukai oleh pengguna.
+
+Sementara itu, pada Collaborative Filtering, pendekatan yang digunakan berfokus pada pola interaksi antara pengguna dan film. Kita perlu melakukan encoding data pengguna dan film, membagi data menjadi training dan testing, lalu melatih model menggunakan data tersebut. Setelah pelatihan selesai, model akan dievaluasi untuk mengetahui seberapa baik kemampuannya dalam memahami preferensi pengguna dan memberikan rekomendasi film yang relevan.
+
+Content-Based Filtering memiliki kelebihan dalam memberikan rekomendasi secara personal tanpa memerlukan data dari pengguna lain, dan tetap bisa memberikan rekomendasi meskipun jumlah pengguna sedikit (cold start problem pada pengguna tidak terlalu berdampak). Namun, kelemahannya adalah model ini terbatas pada item yang memiliki fitur yang jelas dan tidak dapat merekomendasikan item yang sangat berbeda dari preferensi sebelumnya.
+Di sisi lain, Collaborative Filtering mampu menemukan pola yang lebih kompleks dalam perilaku pengguna dan dapat merekomendasikan item di luar preferensi konten sebelumnya. Namun, model ini memerlukan data interaksi yang cukup besar agar akurat, dan dapat mengalami masalah cold start ketika menghadapi pengguna atau item baru yang belum memiliki cukup data.
+
+### Content Based Filtering
+Sampai di sini, kita telah melewati serangkaian tahapan untuk membuat sistem rekomendasi mulai dari:
+
+1. Data Understanding.
+2. Univariate Exploratory Data Analysis.
+3. Data Preprocessing.
+4. Data Preparation.
+
+Kini, saatnya kita mengembangkan sistem rekomendasi dengan pendekatan Content Based Filtering. Untuk modelling pada tahap ini, kita akan memasukkan data yang telah dimiliki sebelumnya (movie_new) ke dalam variabel data. Jalankan kode berikut.
+```sh
+data = movie_new
+```
+
+### Content Based Filtering - TF-IDF Vectorizer
+Pada tahap ini, kita akan membangun sistem rekomendasi sederhana berdasarkan genre film. Teknik yang akan digunakan adalah dengan TF-IDF Vectorizer yang bertujuan untuk menemukan representasi fitur penting dari setiap genre film. 
+TF-IDF merupakan singkatan dari Term Frequency - Inverse Document Frequency, yaitu sebuah metode untuk mengubah teks menjadi representasi numerik (vektor) yang bisa digunakan dalam perhitungan kesamaan (similarity). Dalam konteks Content Based Filtering, TF-IDF digunakan untuk merepresentasikan konten film (dalam hal ini genre) ke dalam bentuk vektor numerik. Kita akan menggunakan fungsi TfidfVectorizer() dari library sklearn. Jalankan kode berikut.
+```sh
+vectorizer = TfidfVectorizer()
+# Melakukan perhitungan idf pada data genres
+vectorizer.fit(data['movie_genres'])
+# Mapping array dari fitur index integer ke fitur nama
+vectorizer.get_feature_names_out()
+```
+Output:
+```sh
+array(['action', 'adventure', 'animation', 'children', 'comedy', 'crime',
+       'documentary', 'drama', 'fantasy', 'fi', 'film', 'horror', 'imax',
+       'musical', 'mystery', 'noir', 'romance', 'sci', 'thriller', 'war',
+       'western'], dtype=object)
+```
+Selanjutnya, lakukan fit dan transformasi ke dalam bentuk matriks.
+```
+tfidf_matrix = vectorizer.fit_transform(data['movie_genres'])
+tfidf_matrix.shape
+```
+Output:
+```
+(9690, 21)
+```
+Perhatikanlah, matriks yang kita miliki berukuran (9690, 21). Nilai 9690 merupakan ukuran data dan 21 merupakan matriks genre. Untuk menghasilkan vektor tf-idf dalam bentuk matriks, kita menggunakan fungsi todense(). Jalankan kode berikut.
+```sh
+tfidf_matrix.todense()
+```
+Output:
+```sh
+matrix([[0.        , 0.41677501, 0.51640289, ..., 0.        , 0.        ,
+         0.        ],
+        [0.        , 0.        , 0.        , ..., 0.        , 0.        ,
+         0.        ],
+        [0.54892995, 0.        , 0.        , ..., 0.54217851, 0.        ,
+         0.        ],
+        ...,
+        [0.64131101, 0.        , 0.        , ..., 0.63342334, 0.        ,
+         0.        ],
+        [0.        , 0.        , 0.        , ..., 0.6246757 , 0.        ,
+         0.        ],
+        [0.        , 0.        , 0.        , ..., 0.        , 0.        ,
+         0.        ]])
+```
+Selanjutnya, mari kita lihat matriks tf-idf untuk beberapa film (movie_title) dan genre film (genres). Terapkan kode berikut.
+```sh
+pd.DataFrame(
+    tfidf_matrix.todense(),
+    columns=vectorizer.get_feature_names_out(),
+    index=data.movie_title
+).sample(21, axis=1).sample(10, axis=0)
+```
+Output:
+| movie_title                | crime | musical | western | imax | horror   | thriller | mystery  | action   | noir | documentary | drama    | war | adventure | comedy   | film | fi     | animation | sci     | fantasy | romance |
+|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|------|
+| Swelter (2014)            | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.633423 | 0.000000 | 0.641311 | 0.0  | 0.0         | 0.433007 | 0.0 | 0.000000  | 0.000000 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+| Ruby in Paradise (1993)   | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 0.0  | 0.0         | 1.000000 | 0.0 | 0.000000  | 0.000000 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+| Coffee Town (2013)        | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 0.0  | 0.0         | 0.000000 | 0.0 | 0.000000  | 1.000000 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+| Yes Men, The (2003)       | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 0.0  | 1.0         | 0.000000 | 0.0 | 0.000000  | 0.000000 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+| La Belle Verte (1996)     | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.000000 | 0.000000 | 0.000000 | 0.0  | 0.0         | 0.000000 | 0.0 | 0.000000  | 1.000000 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+| Fallen Idol, The (1948)   | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.528771 | 0.767947 | 0.000000 | 0.0  | 0.0         | 0.361467 | 0.0 | 0.000000  | 0.000000 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+| This Is the End (2013)    | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.000000 | 0.000000 | 0.807521 | 0.0  | 0.0         | 0.000000 | 0.0 | 0.000000  | 0.589839 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+| Star Trek Beyond (2016)   | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.000000 | 0.000000 | 0.432736 | 0.0  | 0.0         | 0.000000 | 0.0 | 0.492807  | 0.000000 | 0.0  | 0.5338 | 0.0       | 0.5338  | 0.0     | 0.0     |
+| Parasyte: Part 2 (2015)   | 0.0    | 0.0     | 0.0     | 0.0  | 0.577708 | 0.000000 | 0.000000 | 0.000000 | 0.0  | 0.0         | 0.000000 | 0.0 | 0.000000  | 0.000000 | 0.0  | 0.5772 | 0.0       | 0.5772  | 0.0     | 0.0     |
+| Kalifornia (1993)         | 0.0    | 0.0     | 0.0     | 0.0  | 0.000000 | 0.825543 | 0.000000 | 0.000000 | 0.0  | 0.0         | 0.564339 | 0.0 | 0.000000  | 0.000000 | 0.0  | 0.0000 | 0.0       | 0.0000  | 0.0     | 0.0     |
+
+Output matriks tf-idf di atas menunjukkan film Swelter (2014) memiliki genre thriller, action, dan drama. Hal ini terlihat dari nilai matriks 0.633423 pada genre drama, 0.641311 pada action, dan 0.433007 pada drama. Selanjutnya, film Ruby in Paradise (1993) termasuk dalam genre drama yang ditunjukkan oleh nilai matriks 1.0 pada genre drama. Sedangkan, film Yes Men, The (2003) termasuk dalam genre documentary.
+Demikian seterusnya, matriks tf-idf ini memudahkan kita dalam menganalisis seberapa kuat keterkaitan antara film dan masing-masing genre, serta memungkinkan kita mengelompokkan film berdasarkan kedekatan nilai tf-idf antar genre.
+
+### Content Based Filtering - Cosine Similarity
+Pada tahap sebelumnya, kita telah berhasil mengidentifikasi korelasi antara restoran dengan kategori masakannya. Sekarang, kita akan menghitung derajat kesamaan (similarity degree) antar restoran dengan teknik cosine similarity. Di sini, kita menggunakan fungsi cosine_similarity dari library sklearn. Jalankan kode berikut.
+```sh
+cosine_sim = cosine_similarity(tfidf_matrix)
+cosine_sim
+```
+Output:
+```sh
+array([[1.        , 0.15245713, 0.        , ..., 0.        , 0.        ,
+        0.        ],
+       [0.15245713, 1.        , 0.        , ..., 0.        , 0.        ,
+        0.        ],
+       [0.        , 0.        , 1.        , ..., 0.69546334, 0.33868574,
+        0.        ],
+       ...,
+       [0.        , 0.        , 0.69546334, ..., 1.        , 0.39568417,
+        0.        ],
+       [0.        , 0.        , 0.33868574, ..., 0.39568417, 1.        ,
+        0.78088428],
+       [0.        , 0.        , 0.        , ..., 0.        , 0.78088428,
+        1.        ]])
+```
+Pada tahapan ini, kita menghitung cosine similarity dataframe tfidf_matrix yang kita peroleh pada tahapan sebelumnya. Dengan satu baris kode untuk memanggil fungsi cosine similarity dari library sklearn, kita telah berhasil menghitung kesamaan (similarity) antar film. Kode di atas menghasilkan keluaran berupa matriks kesamaan dalam bentuk array.
+Selanjutnya, mari kita lihat matriks kesamaan setiap film dengan menampilkan judul film dalam 5 sampel kolom (axis = 1) dan 10 sampel baris (axis=0). Jalankan kode berikut.
+```sh
+cosine_sim_df = pd.DataFrame(cosine_sim, index=data['movie_title'], columns=data['movie_title'])
+print('Shape:', cosine_sim_df.shape)
+cosine_sim_df.sample(5, axis=1).sample(10, axis=0)
+```
+Output:
+```sh
+Shape: (9690, 9690)
+```
+| movie_title                        | It's a Very Merry Muppet Christmas Movie (2002) | 12 Chairs (1971) | Drive Me Crazy (1999) | Way of the Dragon, The (a.k.a. Return of the Dragon) (1972) | Heartless (2009) |
+|-----------------------------------|--------------------------------------------------|-------------------|------------------------|-------------------------------------------------------------|------------------|
+| Last Seduction, The (1994)        | 0.000000                                         | 0.000000          | 0.000000               | 0.526772                                                    | 0.233336         |
+| Cradle Will Rock (1999)           | 0.000000                                         | 0.000000          | 0.000000               | 0.000000                                                    | 0.000000         |
+| Return with Honor (1998)          | 0.000000                                         | 0.000000          | 0.000000               | 0.000000                                                    | 0.000000         |
+| Platoon (1986)                    | 0.000000                                         | 0.000000          | 0.000000               | 0.000000                                                    | 0.000000         |
+| Day of the Locust, The (1975)     | 0.000000                                         | 0.000000          | 0.000000               | 0.000000                                                    | 0.000000         |
+| The Dark Tower (2017)             | 0.000000                                         | 0.000000          | 0.000000               | 0.000000                                                    | 0.413621         |
+| Tigerland (2000)                  | 0.000000                                         | 0.000000          | 0.000000               | 0.000000                                                    | 0.000000         |
+| Silence, The (Tystnaden) (1963)   | 0.000000                                         | 0.000000          | 0.000000               | 0.000000                                                    | 0.000000         |
+| Opera (1987)                      | 0.000000                                         | 0.000000          | 0.000000               | 0.395372                                                    | 0.643067         |
+| Harvey Girls, The (1946)          | 0.131031                                         | 0.151159          | 0.159679               | 0.000000                                                    | 0.000000         |
+
+Dengan cosine similarity, kita berhasil mengidentifikasi kesamaan antara satu film dengan film lainnya. Shape (9690, 9690) merupakan ukuran matriks similarity dari data yang kita miliki. Berdasarkan data yang ada, matriks di atas sebenarnya berukuran 9690 film x 9690 film (masing-masing dalam sumbu X dan Y). Artinya, kita mengidentifikasi tingkat kesamaan pada 9690 nama film. Tapi tentu kita tidak bisa menampilkan semuanya. Oleh karena itu, kita hanya memilih 10 film pada baris vertikal dan 5 film pada sumbu horizontal seperti pada contoh di atas.
+Nah, dengan data kesamaan (similarity) film yang diperoleh dari kode sebelumnya, kita akan merekomendasikan daftar film yang mirip (similar) dengan film yang sebelumnya pernah ditonton pengguna.
+
+### Content Based Filtering - Mendapatkan Rekomendasi
+Sebelumnya, kita telah memiliki data similarity (kesamaan) antar film. Kini, tibalah saatnya  menghasilkan sejumlah film yang akan direkomendasikan kepada user. Untuk lebih memahami bagaimana cara kerjanya, lihatlah kembali matriks similarity pada tahap sebelumnya. Sebagai gambaran, mari kita ambil satu contoh berikut.
+User X pernah menonton film X. Kemudian, saat user tersebut berencana untuk menonton film lain, sistem akan merekomendasikan film Y. Nah, rekomendasi film ini berdasarkan kesamaan yang dihitung dengan cosine similarity pada tahap sebelumnya.
+
+Di sini, kita membuat fungsi resto_recommendations dengan beberapa parameter sebagai berikut:
+
+- judul_film : judul film (index kemiripan dataframe).
+- similarity_data : dataframe mengenai similarity yang telah kita definisikan sebelumnya.
+- items : Nama dan fitur yang digunakan untuk mendefinisikan kemiripan, dalam hal ini adalah ‘movie_title’ dan ‘genres’.
+- k : Banyak rekomendasi yang ingin diberikan.
+
+Sebelum mulai menulis kodenya, ingatlah kembali definisi sistem rekomendasi yang menyatakan bahwa keluaran sistem ini adalah berupa top-N recommendation. Oleh karena itu, kita akan memberikan sejumlah rekomendasi film pada pengguna yang diatur dalam parameter k (dalam hal ini k=5, artinya kita akan merekomendasikan 5 film kepada user).
+
+Kita akan membuat fungsi `movie_recommendations` untuk mendapatkan daftar rekomendasi film berdasarkan kemiripan konten. Fungsi ini memanfaatkan data cosine similarity antar judul film, lalu mencari film dengan tingkat kemiripan tertinggi terhadap film yang diberikan oleh pengguna.
+Fungsi ini menerima beberapa parameter:
+- **judul_film**: judul film yang dijadikan acuan rekomendasi.
+- **similarity_data**: matriks dataframe yang berisi skor kemiripan antar film.
+- **items**: dataframe yang berisi metadata film, seperti judul dan genre.
+- **k**: jumlah film yang direkomendasikan.
+
+Proses dalam fungsi meliputi pencarian `k` film dengan nilai kemiripan tertinggi (selain film itu sendiri), dan hasil akhirnya berupa dataframe yang memuat daftar film rekomendasi beserta informasinya.
+
+Setelah itu, kita dapat menggunakan fungsi tersebut untuk mencari rekomendasi film yang mirip dengan judul film yang kita inginkan. Jalankan kode berikut untuk mendapatkan rekomendasi film yang mirip dengan film Toy Story (1995).
+```sh
+movie_recommendations('Toy Story (1995)')
+```
+Output:
+| movie_title | movie_genres |
+| ------ | ------ |
+| Monsters, Inc. (2001) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| Moana (2016) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| Turbo (2013) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| Wild, The (2006) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+| Toy Story 2 (1999) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
+
+Berhasil! sistem kita memberikan rekomendasi 5 judul film yang mirip dengan Toy Story (1995) dengan genre Adventure|Animation|Children|Comedy|Fantasy.
+
+### Collaborative Filtering - 
+
 
 ## Evaluation
 Pada bagian ini Anda perlu menyebutkan metrik evaluasi yang digunakan. Kemudian, jelaskan hasil proyek berdasarkan metrik evaluasi tersebut.
