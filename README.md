@@ -354,7 +354,7 @@ Output:
 
 Okay, data kini telah siap untuk dimasukkan ke dalam pemodelan. Yuk, kita lanjut ke tahap berikutnya!
 
-## Modeling
+## Modelling
 Pada tahap Modelling, kita akan menggunakan dua pendekatan, yaitu **Content-Based Filtering** dan **Collaborative Filtering**.
 
 Pada Content-Based Filtering, rekomendasi film diberikan berdasarkan kemiripan konten dengan film yang telah diberi rating oleh pengguna. Oleh karena itu, kita akan menerapkan teknik TF-IDF untuk mengubah informasi genre menjadi representasi numerik, kemudian menghitung cosine similarity antar film berdasarkan kesamaan genre tersebut. Dengan begitu, kita dapat mengetahui seberapa mirip suatu film dengan film lain yang disukai oleh pengguna.
@@ -532,18 +532,108 @@ Output:
 | Wild, The (2006) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
 | Toy Story 2 (1999) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
 
-Berhasil! sistem kita memberikan rekomendasi 5 judul film yang mirip dengan Toy Story (1995) dengan genre Adventure|Animation|Children|Comedy|Fantasy.
+Berhasil! sistem kita memberikan rekomendasi 5 judul film yang mirip dengan Toy Story (1995) dengan genre Adventure|Animation|Children|Comedy|Fantasy. Selanjutnya kita akan melakukan tahap modelling menggunakan Collaborative Filtering.
 
-### Collaborative Filtering - 
+### Collaborative Filtering
+Pahami terlebih dahulu data rating yang kita miliki. Ingatlah saat kita melakukan load data di awal dan membaca file rating_final.csv. Saat itu, kita membuat variabel rating dan menetapkan data pada variabel tersebut. Kemudian, kita menghapus rating pada data film dengan genres = '(no_genres_listed)' dan menyimpannya dalam variabel movies_ratings. Untuk memudahkan supaya tidak tertukar dengan fitur ‘rating’ pada data, kita ubah nama variabel movies_ratings (tanpa kolom genres dan title) menjadi variabel df.
+```sh
+df = movies_ratings.drop(['genres', 'title'], axis=1)
+```
 
+### Collaborative Filtering - Data Preparation
+Sekarang kita memasuki tahap preparation. Pada tahap ini, kita perlu melakukan persiapan data untuk menyandikan (encode) fitur ‘userId’ dan ‘movieId’ ke dalam indeks integer. Terapkan kode berikut.
+```sh
+user_ids = df['userId'].unique().tolist()
+user_to_user_encoded = {x: i for i, x in enumerate(user_ids)}
+user_encoded_to_user = {i: x for i, x in enumerate(user_ids)}
+```
+Selanjutnya, lakukan hal yang sama pada fitur ‘movieId’.
+```sh
+movie_ids = df['movieId'].unique().tolist()
+movie_to_movie_encoded = {x: i for i, x in enumerate(movie_ids)}
+movie_encoded_to_movie = {i: x for i, x in enumerate(movie_ids)}
+```
+Berikutnya, petakan userId dan movieId ke dataframe yang berkaitan.
+```sh
+df['user'] = df['userId'].map(user_to_user_encoded)
+df['movie'] = df['movieId'].map(movie_to_movie_encoded)
+```
+Tahap persiapan telah selesai. Berikut adalah hal-hal yang telah kita lakukan pada tahap ini:
+- Memahami data rating yang kita miliki.
+- Menyandikan (encode) fitur ‘userId’ dan ‘movieId’ ke dalam indeks integer.
+- Memetakan ‘userID’ dan ‘movieId’ ke dataframe yang berkaitan.
+- Mengecek beberapa hal dalam data seperti jumlah user, jumlah film, kemudian mengubah nilai rating menjadi float.
+
+Tahap persiapan ini penting dilakukan agar data siap digunakan untuk
+pemodelan. Namun sebelumnya, kita perlu membagi data untuk training dan validasi terlebih dahulu.
+
+### Collaborative Filtering - Membagi Data untuk Training dan Validasi
+Sebelum membagi data menjadi data training dan validasi, datanya perlu diacak terlebih dahulu agar distribusinya menjadi random.
+```sh
+df = df.sample(frac=1, random_state=42)
+```
+- frac=1 berarti "fraction" = 100% dari data diambil, tapi urutannya diacak.
+- random_state=42 berarti menetapkan seed untuk pengacakan, agar hasil acakan selalu sama setiap kali dijalankan. Angka 42 bisa diganti berapa pun, tapi disarankan untuk tetap konsisten agar replikasi bisa dilakukan.
+
+Selanjutnya, kita bagi data train dan validasi dengan komposisi 80:20. Namun sebelumnya, kita perlu memetakan (mapping) data user dan film menjadi satu value terlebih dahulu. Lalu, buatlah rating dalam skala 0 sampai 1 agar mudah dalam melakukan proses training.
+```sh
+x = df[['user', 'movie']].values
+y = df['rating'].apply(lambda x: (x - min_rating) / (max_rating - min_rating)).values
+train_indices = int(0.8 * df.shape[0])
+x_train, x_val, y_train, y_val = (x[:train_indices], x[train_indices:], y[:train_indices], y[train_indices:])
+print(x, y)
+```
+Output:
+```sh
+[[   6  783]
+ [ 413 5917]
+ [ 508  875]
+ ...
+ [ 479 5869]
+ [   5  712]
+ [ 102 1129]] [0.66666667 0.66666667 0.66666667 ... 0.11111111 0.55555556 0.88888889]
+ ```
+ Data telah siap untuk dimasukkan ke dalam model untuk dievaluasi.
 
 ## Evaluation
-Pada bagian ini Anda perlu menyebutkan metrik evaluasi yang digunakan. Kemudian, jelaskan hasil proyek berdasarkan metrik evaluasi tersebut.
+Pada tahap ini, model menghitung skor kecocokan antara user dan film dengan teknik embedding. Pertama, kita melakukan proses embedding terhadap data user dan film. Selanjutnya, lakukan operasi perkalian dot product antara embedding user dan film. Selain itu, kita juga dapat menambahkan bias untuk setiap user dan film. Skor kecocokan ditetapkan dalam skala [0,1] dengan fungsi aktivasi sigmoid.
+Pada tahap ini, model menghitung skor kecocokan antara user dan film menggunakan teknik embedding, yang memungkinkan model merepresentasikan user dan film dalam bentuk vektor berdimensi rendah. Proses ini dilakukan oleh kelas RecommenderNet, yang merupakan turunan dari tf.keras.Model. Berikut penjelasan dari tahapannya:
+1. Embedding Layer
+Model membuat dua embedding layer terpisah untuk:
+    - User (self.user_embedding)
+    Menerjemahkan ID user menjadi vektor berdimensi embedding_size.
+    - Film (self.movie_embedding)
+    Menerjemahkan ID film menjadi vektor berdimensi embedding_size.
 
-Ingatlah, metrik evaluasi yang digunakan harus sesuai dengan konteks data, problem statement, dan solusi yang diinginkan.
+    Selain itu, model juga membuat bias embedding untuk masing-masing:
+    - self.user_bias: memberikan nilai bias untuk tiap user.
+    - self.movie_bias: memberikan nilai bias untuk tiap film.
 
-**Rubrik/Kriteria Tambahan (Opsional)**: 
-- Menjelaskan formula metrik dan bagaimana metrik tersebut bekerja.
+2. Dot Product (Perkalian Vektor)
+Pada fungsi call(), model menerima input berisi pasangan [user_id, movie_id].
+Kemudian, dilakukan:
+- Pengambilan embedding user dan film berdasarkan ID masing-masing.
+- Pengambilan bias user dan bias film.
+- Penghitungan dot product antara embedding user dan embedding film, yaitu tf.tensordot(user_vector, movie_vector, 2), yang menghasilkan skor kecocokan mentah.
+
+3. Penambahan Bias
+Hasil dot product tersebut ditambahkan dengan user_bias dan movie_bias untuk mengakomodasi preferensi atau kecenderungan masing-masing user dan film yang tidak ditangkap oleh embedding saja.
+
+4. Aktivasi Sigmoid
+Nilai akhir (skor kecocokan) dilewatkan ke fungsi aktivasi sigmoid, yang akan memetakan skor tersebut ke dalam rentang [0, 1].
+Nilai ini dapat diinterpretasikan sebagai probabilitas seberapa besar kemungkinan user akan menyukai film tersebut.
+
+Selanjutnya, lakukan proses compile terhadap model.
+```sh
+model = RecommenderNet(num_users, num_movie, 50)
+model.compile(loss = tf.keras.losses.BinaryCrossentropy(), optimizer = keras.optimizers.Adam(learning_rate=0.001), metrics=[tf.keras.metrics.RootMeanSquaredError()])
+```
+Model ini menggunakan Binary Crossentropy untuk menghitung loss function, Adam (Adaptive Moment Estimation) sebagai optimizer, dan root mean squared error (RMSE) sebagai metrics evaluation. Langkah berikutnya, mulailah proses training.
+```sh
+history = model.fit(x = x_train, y = y_train, batch_size = 32, epochs = 25, validation_data = (x_val, y_val))
+```
+
+
 
 **---Ini adalah bagian akhir laporan---**
 
