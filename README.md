@@ -612,6 +612,7 @@ Selanjutnya, model di-compile dengan beberapa parameter, yaitu:
 - Metrik evaluasi RMSE: Digunakan untuk mengevaluasi performa model selama training dan testing dengan menghitung akar dari rata-rata kuadrat selisih antara prediksi dan nilai aktual. Semakin kecil nilai RMSE, maka semakin akurat model dalam memprediksi.
 
 RMSE dirumuskan sebagai berikut:
+
 ![Formula](images/Formula.png)
 
 Di mana:
@@ -629,7 +630,7 @@ history = model.fit(x = x_train, y = y_train, batch_size = 32, epochs = 25, vali
 Berikut adalah visualisasi grafik RMSE selama proses training dan validation:
 ![RMSE](images/RMSE.png)
 
-Sumbu x menunjukkan epoch dan sumbu y menunjukkan nilai RMSE. Perhatikanlah, proses training dan validation model cukup smooth dan model konvergen pada epochs sekitar 25. Dari proses ini, kita memperoleh nilai error akhir sebesar sekitar 0.23 dan error pada data validasi sebesar sekitar 0.34. Nilai tersebut cukup bagus untuk sistem rekomendasi. Mari kita cek, apakah model ini bisa membuat rekomendasi dengan baik?
+Sumbu x menunjukkan epoch dan sumbu y menunjukkan nilai RMSE. Perhatikanlah, proses training dan validation model cukup smooth dan model konvergen pada epochs sekitar 25. Dari proses ini, kita memperoleh nilai error akhir sebesar 0.1875 dan error pada data validasi sebesar 0.2007. Nilai tersebut cukup bagus untuk sistem rekomendasi. Mari kita cek, apakah model ini bisa membuat rekomendasi dengan baik?
 
 ### Mendapatkan Rekomendasi Film
 Untuk mendapatkan rekomendasi film, pertama kita ambil sampel user secara acak dan definisikan variabel movie_not_watched yang merupakan daftar film yang belum pernah ditonton oleh user. Daftar movie_not_watched inilah yang akan menjadi film yang kita rekomendasikan.
