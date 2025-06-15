@@ -26,12 +26,12 @@ Sistem rekomendasi dapat meningkatkan pengalaman pengguna dalam memilih film, me
 Untuk mencapai tujuan proyek, digunakan dua pendekatan berikut:
 1. Content-Based Filtering:
 - Menggunakan data movies.csv untuk mengekstrak fitur film berdasarkan kolom genres.
-- Menerapkan TF-IDF Vectorization atau MultiLabelBinarizer untuk mengubah genre menjadi vektor fitur.
+- Menerapkan TF-IDF Vectorization untuk mengubah genre menjadi vektor fitur.
 - Menghitung kemiripan antar film menggunakan cosine similarity.
 - Membangun sistem rekomendasi berdasarkan film yang pernah diberi rating tinggi oleh pengguna.
 2. Collaborative Filtering:
 - Menggunakan data ratings.csv yang memuat informasi userId, movieId, dan rating.
-- Membangun user-item matrix dan menerapkan matrix factorization (misalnya SVD atau ALS).
+- Membangun user-item matrix dan menerapkan matrix factorization.
 - Menyediakan rekomendasi berdasarkan prediksi rating tertinggi dari model terhadap item yang belum diberi rating oleh pengguna.
 
 Dengan menggunakan dua pendekatan ini, proyek bertujuan memberikan wawasan yang lebih luas tentang kekuatan dan kelemahan masing-masing metode dalam konteks sistem rekomendasi film.
