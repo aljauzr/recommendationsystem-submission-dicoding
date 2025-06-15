@@ -177,7 +177,7 @@ Output:
 | 2 | 89774 |Boxing story | 1445715207 |
 | 2	| 89774 | MMA | 1445715200 |
 
-Baris ke-1 dari output di atas memberikan arti bahwa user dengan userId = 2 memberikan tag 'funny' ke film dengan movieId = 60756 pada 24 Oktober 2015 pukul 14:49:54 UTC (setelah dikonversi dari UNIX timestamp).
+Baris ke-1 dari output di atas memberikan arti bahwa user dengan userId = 2 memberikan tag 'funny' ke film dengan movieId = 60756 pada 24 Oktober 2015 pukul 14:49:54 UTC (setelah dikonversi dari UNIX timestamp). Demikian seterusnya.
 
 ### EDA - Univariate Analysis (user)
 Selanjutnya, kita eksplorasi variabel user. Namun, pada dataset ini user tidak memiliki file .csv nya sendiri. Pada ratings.csv, terdapat kolom userId, kolom ini akan kita gunakan untuk mengidentifikasi jumlah user yang telah memberikan rating terhadap film. Terapkan kode berikut.
@@ -313,18 +313,7 @@ Sedangkan untuk model Collaborative Filtering, nanti kita akan tetap mempertahan
 Berikutnya, kita bisa melanjutkan ke tahap persiapan. Buatlah variabel bernama preparation yang dikhususkan untuk model Content Based Filtering. Jalankan kode berikut.
 ```sh
 preparation = movies_ratings
-preparation.sort_values('movieId')
 ```
-Output:
-| userId | movieId | rating | timestamp | title | genres |
-| ------ | ------ | ------ | ------ | ------ | ------ |
-| 469 | 1 | 4.0 | 965336888 | Toy Story (1995) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
-| 584 | 1 | 5.0 | 834987643 |	Toy Story (1995) | Adventure\|Animation\|Children\|Comedy\|Fantasy |
-| 391 | 1 | 3.0 | 1032388077 | Toy Story (1995) |	Adventure\|Animation\|Children\|Comedy\|Fantasy |
-| 533 |	1 |	5.0 | 1424753740 | Toy Story (1995) |	Adventure\|Animation\|Children\|Comedy\|Fantasy |
-| 380 |	1 |	5.0 | 1493420345 | Toy Story (1995) |	Adventure\|Animation\|Children\|Comedy\|Fantasy |
-| ... |	... | ... |	... | ... |	... |
-
 Selanjutnya, kita hanya akan menggunakan data unik untuk dimasukkan ke dalam proses pemodelan. Oleh karena itu, kita perlu menghapus data yang duplikat dengan fungsi drop_duplicates(). Dalam hal ini, kita membuang data duplikat pada kolom ‘movieId’. Implementasikan kode berikut.
 ```sh
 preparation = preparation.drop_duplicates('movieId')
@@ -501,15 +490,6 @@ Nah, dengan data kesamaan (similarity) film yang diperoleh dari kode sebelumnya,
 Sebelumnya, kita telah memiliki data similarity (kesamaan) antar film. Kini, tibalah saatnya  menghasilkan sejumlah film yang akan direkomendasikan kepada user. Untuk lebih memahami bagaimana cara kerjanya, lihatlah kembali matriks similarity pada tahap sebelumnya. Sebagai gambaran, mari kita ambil satu contoh berikut.
 User X pernah menonton film X. Kemudian, saat user tersebut berencana untuk menonton film lain, sistem akan merekomendasikan film Y. Nah, rekomendasi film ini berdasarkan kesamaan yang dihitung dengan cosine similarity pada tahap sebelumnya.
 
-Di sini, kita membuat fungsi resto_recommendations dengan beberapa parameter sebagai berikut:
-
-- judul_film : judul film (index kemiripan dataframe).
-- similarity_data : dataframe mengenai similarity yang telah kita definisikan sebelumnya.
-- items : Nama dan fitur yang digunakan untuk mendefinisikan kemiripan, dalam hal ini adalah ‘movie_title’ dan ‘genres’.
-- k : Banyak rekomendasi yang ingin diberikan.
-
-Sebelum mulai menulis kodenya, ingatlah kembali definisi sistem rekomendasi yang menyatakan bahwa keluaran sistem ini adalah berupa top-N recommendation. Oleh karena itu, kita akan memberikan sejumlah rekomendasi film pada pengguna yang diatur dalam parameter k (dalam hal ini k=5, artinya kita akan merekomendasikan 5 film kepada user).
-
 Kita akan membuat fungsi `movie_recommendations` untuk mendapatkan daftar rekomendasi film berdasarkan kemiripan konten. Fungsi ini memanfaatkan data cosine similarity antar judul film, lalu mencari film dengan tingkat kemiripan tertinggi terhadap film yang diberikan oleh pengguna.
 Fungsi ini menerima beberapa parameter:
 - **judul_film**: judul film yang dijadikan acuan rekomendasi.
@@ -541,7 +521,7 @@ df = movies_ratings.drop(['genres', 'title'], axis=1)
 ```
 
 ### Collaborative Filtering - Data Preparation
-Sekarang kita memasuki tahap preparation. Pada tahap ini, kita perlu melakukan persiapan data untuk menyandikan (encode) fitur ‘userId’ dan ‘movieId’ ke dalam indeks integer. Terapkan kode berikut.
+Sekarang kita memasuki tahap preparation. Pada tahap ini, kita perlu melakukan persiapan data untuk menyandikan (encode) fitur userId dan movieId ke dalam indeks integer. Meskipun userId dan movieId sudah berupa angka, nilai-nilai tersebut merupakan kategori, bukan angka dalam arti matematis. Misalnya, userId 10 dan 3 tidak memiliki hubungan kuantitatif yang bermakna bagi model. Oleh karena itu, kita melakukan encoding ulang agar setiap ID dipetakan ke indeks integer yang berurutan dan lebih efisien untuk diproses oleh model pembelajaran mesin. Terapkan kode berikut:
 ```sh
 user_ids = df['userId'].unique().tolist()
 user_to_user_encoded = {x: i for i, x in enumerate(user_ids)}
@@ -568,7 +548,7 @@ Tahap persiapan ini penting dilakukan agar data siap digunakan untuk
 pemodelan. Namun sebelumnya, kita perlu membagi data untuk training dan validasi terlebih dahulu.
 
 ### Collaborative Filtering - Membagi Data untuk Training dan Validasi
-Sebelum membagi data menjadi data training dan validasi, datanya perlu diacak terlebih dahulu agar distribusinya menjadi random.
+Sebelum membagi data menjadi data training dan validasi, datanya perlu diacak terlebih dahulu agar distribusinya menjadi acak dan tidak terurut, sehingga tidak terjadi bias selama pelatihan model.
 ```sh
 df = df.sample(frac=1, random_state=42)
 ```
@@ -583,6 +563,8 @@ train_indices = int(0.8 * df.shape[0])
 x_train, x_val, y_train, y_val = (x[:train_indices], x[train_indices:], y[:train_indices], y[train_indices:])
 print(x, y)
 ```
+Kode tersebut digunakan untuk mempersiapkan data sebelum dimasukkan ke dalam model dengan cara memisahkan fitur dan label, melakukan normalisasi rating, serta membagi data menjadi data latih dan validasi. Pertama, `x = df[['user', 'movie']].values` mengambil kolom hasil encoding user dan movie sebagai fitur input dan mengubahnya menjadi array NumPy. Kemudian, `y = df['rating'].apply(lambda x: (x - min_rating) / (max_rating - min_rating)).values` menormalisasi nilai rating agar berada dalam rentang 0 hingga 1, yang mempermudah proses pelatihan model. Selanjutnya, `train_indices = int(0.8 * df.shape[0])` menghitung jumlah baris yang digunakan untuk data latih berdasarkan 80% dari total data. Terakhir, data dibagi menjadi `x_train, x_val, y_train, dan y_val` menggunakan slicing berdasarkan indeks tersebut, dan `print(x, y)` digunakan untuk menampilkan isi array input dan label yang telah diproses.
+
 Output:
 ```sh
 [[   6  783]
@@ -634,19 +616,108 @@ history = model.fit(x = x_train, y = y_train, batch_size = 32, epochs = 25, vali
 ```
 Berikut adalah visualisasi grafik RMSE selama proses training dan validation:
 ![RMSE](images/RMSE.png)
+
 Sumbu x menunjukkan epoch dan sumbu y menunjukkan nilai RMSE. Perhatikanlah, proses training dan validation model cukup smooth dan model konvergen pada epochs sekitar 25. Dari proses ini, kita memperoleh nilai error akhir sebesar sekitar 0.23 dan error pada data validasi sebesar sekitar 0.34. Nilai tersebut cukup bagus untuk sistem rekomendasi. Mari kita cek, apakah model ini bisa membuat rekomendasi dengan baik?
 
 ### Mendapatkan Rekomendasi Film
 Untuk mendapatkan rekomendasi film, pertama kita ambil sampel user secara acak dan definisikan variabel movie_not_watched yang merupakan daftar film yang belum pernah ditonton oleh user. Daftar movie_not_watched inilah yang akan menjadi film yang kita rekomendasikan.
 
-Sebelumnya, user telah memberi rating pada beberapa film yang telah mereka tonton. Kita menggunakan rating ini untuk membuat rekomendasi film yang mungkin cocok untuk user. Nah, film yang akan direkomendasikan tentulah film yang belum pernah ditonton oleh user. Oleh karena itu, kita perlu membuat variabel movie_not_watched sebagai daftar film untuk direkomendasikan pada user.
-
-Variabel movie_not_watched diperoleh dengan menggunakan operator bitwise (~) pada variabel movie_watched_by_user.
-
+Sebelumnya, user telah memberi rating pada beberapa film yang telah mereka tonton. Kita menggunakan rating ini untuk membuat rekomendasi film yang mungkin cocok untuk user. Nah, film yang akan direkomendasikan tentulah film yang belum pernah ditonton oleh user. Oleh karena itu, kita perlu membuat variabel movie_not_watched sebagai daftar film untuk direkomendasikan pada user. Variabel movie_not_watched diperoleh dengan menggunakan operator bitwise (~) pada variabel movie_watched_by_user.
 Terapkan kode berikut.
+```sh
+movie_df = movie_new
+df = movies_ratings.drop(['genres', 'title'], axis=1)
+
+# Mengambil sample user
+user_id = df.userId.sample(1).iloc[0]
+movie_watched_by_user = df[df.userId == user_id]
+
+# Operator bitwise (~), bisa diketahui di sini https://docs.python.org/3/reference/expressions.html
+movie_not_watched = movie_df[~movie_df['id'].isin(movie_watched_by_user.movieId.values)]['id']
+movie_not_watched = list(
+    set(movie_not_watched)
+    .intersection(set(movie_to_movie_encoded.keys()))
+)
+
+movie_not_watched = [[movie_to_movie_encoded.get(x)] for x in movie_not_watched]
+user_encoder = user_to_user_encoded.get(user_id)
+user_movie_array = np.hstack(
+    ([[user_encoder]] * len(movie_not_watched), movie_not_watched)
+)
+```
+Kode tersebut bertujuan untuk menyiapkan data rekomendasi film bagi seorang pengguna secara acak. Pertama, dipilih satu userId secara acak dari dataset, lalu diambil daftar film yang sudah ditonton oleh user tersebut. Selanjutnya, digunakan operator bitwise NOT (~) untuk mendapatkan daftar film yang belum ditonton oleh user dengan membandingkan semua film yang ada di dataset. Daftar film ini kemudian disaring agar hanya mencakup film yang telah diencoding (ada di movie_to_movie_encoded), lalu setiap ID film dikonversi ke bentuk numerik. Setelah itu, ID user juga dikonversi ke bentuk numerik, dan dibentuk array pasangan user-film dalam bentuk numerik, yang siap digunakan sebagai input bagi model rekomendasi untuk memprediksi skor kecocokan antara user dan film.
+
+Selanjutnya, untuk memperoleh rekomendasi restoran, gunakan fungsi model.predict() dari library Keras dengan menerapkan kode berikut.
+```sh
+ratings = model.predict(user_movie_array).flatten()
+
+top_ratings_indices = ratings.argsort()[-10:][::-1]
+recommended_movie_ids = [
+    movie_encoded_to_movie.get(movie_not_watched[x][0]) for x in top_ratings_indices
+]
+
+print('Showing recommendations for users: {}'.format(user_id))
+print('===' * 9)
+print('Movies with high ratings from user')
+print('----' * 8)
+
+top_movie_user = (
+    movie_watched_by_user.sort_values(
+        by = 'rating',
+        ascending=False
+    )
+    .head(5)
+    .movieId.values
+)
+
+movie_df_rows = movie_df[movie_df['id'].isin(top_movie_user)]
+for row in movie_df_rows.itertuples():
+    print(row.movie_title, ':', row.movie_genres)
+
+print('----' * 8)
+print('Top 10 Movies Recommendation')
+print('----' * 8)
+
+recommended_movie = movie_df[movie_df['id'].isin(recommended_movie_ids)]
+for row in recommended_movie.itertuples():
+    print(row.movie_title, ':', row.movie_genres)
+```
+Output:
+```sh
+298/298 ━━━━━━━━━━━━━━━━━━━━ 1s 2ms/step
+Showing recommendations for users: 279
+===========================
+Movies with high ratings from user
+--------------------------------
+Star Wars: Episode IV - A New Hope (1977) : Action|Adventure|Sci-Fi
+Pulp Fiction (1994) : Comedy|Crime|Drama|Thriller
+Alien (1979) : Horror|Sci-Fi
+Thing, The (1982) : Action|Horror|Sci-Fi|Thriller
+Blade Runner (1982) : Action|Sci-Fi|Thriller
+--------------------------------
+Top 10 Movies Recommendation
+--------------------------------
+Inside Job (2010) : Documentary
+Ran (1985) : Drama|War
+Gallipoli (1981) : Drama|War
+Lawrence of Arabia (1962) : Adventure|Drama|War
+Streetcar Named Desire, A (1951) : Drama
+Band of Brothers (2001) : Action|Drama|War
+Trial, The (Procès, Le) (1962) : Drama
+Captain Fantastic (2016) : Drama
+Paths of Glory (1957) : Drama|War
+Yi Yi (2000) : Drama
+```
+Selamat! Anda telah berhasil memberikan rekomendasi kepada user. Sebagai contoh, hasil di atas adalah rekomendasi untuk user dengan id U1013. Dari output tersebut, kita dapat membandingkan antara Resto with high ratings from user dan Top 10 resto recommendation untuk user.
+
+Perhatikanlah, beberapa restoran rekomendasi menyediakan kategori masakan (cuisine) yang sesuai dengan rating user. Kita memperoleh 3 rekomendasi resto dengan kategori ‘cuisine’ Mexican, 2 rekomendasi resto dengan kategori Cafetaria, 1 rekomendasi resto dengan kategori Bar_Pub_Brewery, 1 rekomendasi resto dengan kategori International, 1 rekomendasi resto dengan kategori Japanese, 1 rekomendasi resto dengan kategori Bar, dan 1 resto dengan kategori Contemporary.
+
+Prediksinya cukup sesuai, bukan?
+
+Sampai di tahap ini, Anda telah berhasil membuat sistem rekomendasi dengan dua teknik, yaitu Content Based Filtering dan Collaborative Filtering. Sistem rekomendasi yang Anda buat telah berhasil memberikan sejumlah rekomendasi restoran yang sesuai dengan preferensi pengguna.
+
+Ingatlah, setiap teknik membutuhkan data yang berbeda dan bekerja dengan cara yang berbeda pula. Misalnya, pada teknik collaborative filtering, Anda membutuhkan data rating dari pengguna. Sedangkan, pada content based filtering, data rating tidak diperlukan.
+
+Jika Anda masih penasaran untuk mencoba membuat sistem rekomendasi dengan data lain atau teknik lain, jangan ragu untuk mencoba, ya!
 
 **---Ini adalah bagian akhir laporan---**
-
-_Catatan:_
-- _Anda dapat menambahkan gambar, kode, atau tabel ke dalam laporan jika diperlukan. Temukan caranya pada contoh dokumen markdown di situs editor [Dillinger](https://dillinger.io/), [Github Guides: Mastering markdown](https://guides.github.com/features/mastering-markdown/), atau sumber lain di internet. Semangat!_
-- Jika terdapat penjelasan yang harus menyertakan code snippet, tuliskan dengan sewajarnya. Tidak perlu menuliskan keseluruhan kode project, cukup bagian yang ingin dijelaskan saja.
