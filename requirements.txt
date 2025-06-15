@@ -1,0 +1,6 @@
+kagglehub==0.3.12
+matplotlib==3.10.3
+numpy==2.3.0
+pandas==2.3.0
+scikit_learn==1.7.0
+tensorflow_intel==2.16.2
