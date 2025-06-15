@@ -605,7 +605,24 @@ Selanjutnya, lakukan proses compile terhadap model.
 model = RecommenderNet(num_users, num_movie, 50)
 model.compile(loss = tf.keras.losses.BinaryCrossentropy(), optimizer = keras.optimizers.Adam(learning_rate=0.001), metrics=[tf.keras.metrics.RootMeanSquaredError()])
 ```
-Model ini menggunakan Binary Crossentropy untuk menghitung loss function, Adam (Adaptive Moment Estimation) sebagai optimizer, dan root mean squared error (RMSE) sebagai metrics evaluation. Langkah berikutnya, mulailah proses training.
+Model ini merupakan model rekomendasi sederhana yang dibangun dengan arsitektur RecommenderNet. Model ini dirancang untuk memprediksi tingkat kecocokan antara pengguna dan film berdasarkan embedding. Jumlah pengguna (num_users) dan film (num_movie) ditentukan berdasarkan dataset, dan 50 merupakan ukuran dari embedding vector yang digunakan untuk mewakili setiap pengguna dan film dalam ruang fitur laten.
+Selanjutnya, model di-compile dengan beberapa parameter, yaitu:
+- Loss function BinaryCrossentropy: Digunakan untuk mengukur seberapa jauh prediksi model dari nilai target sebenarnya, dalam konteks klasifikasi biner (antara user dan film).
+- Optimizer Adam dengan LR = 0.001: Digunakan untuk mengupdate bobot model selama training untuk meminimalkan loss. Nilai 0.001 merupakan nilai standar yang memberikan laju pembelajaran yang stabil, tidak terlalu cepat sehingga menghindari overshooting, dan tidak terlalu lambat agar proses training efisien. Adam adalah salah satu optimizer yang paling umum karena menggabungkan kelebihan dari dua metode lainnya: AdaGrad dan RMSProp. Adam dapat menangani data yang sparse dan memiliki performa konvergensi yang baik dengan sedikit penyesuaian hyperparameter.
+- Metrik evaluasi RMSE: Digunakan untuk mengevaluasi performa model selama training dan testing dengan menghitung akar dari rata-rata kuadrat selisih antara prediksi dan nilai aktual. Semakin kecil nilai RMSE, maka semakin akurat model dalam memprediksi.
+
+RMSE dirumuskan sebagai berikut:
+![Formula](images/Formula.png)
+
+Di mana:
+- 𝑛: jumlah data (jumlah pasangan prediksi-aktual)
+- ŷ𝑖: nilai yang diprediksi oleh model pada data ke-i
+- 𝑦𝑖: nilai aktual (ground truth) pada data ke-i
+- (ŷ𝑖 - 𝑦𝑖)^2 : kuadrat dari selisih antara prediksi dan aktual
+
+RMSE adalah akar dari rata-rata kuadrat selisih antara prediksi dan nilai aktual. Cocok digunakan untuk mengukur performa sistem rekomendasi yang memprediksi angka seperti rating. Nilai RMSE yang rendah menunjukkan model yang akurat.
+
+Selanjutnya, kita akan melatih model dengan data training dan data validation yang telah ditetapkan sebelumnya dengan 25 epoch dan nilai batch size = 32. Penggunaan batch_size = 32 berarti model akan memproses 32 data sekaligus sebelum memperbarui bobotnya. Ukuran ini memberikan keseimbangan antara kecepatan training, efisiensi memori, dan akurasi pembelajaran, serta merupakan salah satu pilihan batch size yang paling umum digunakan dalam praktik deep learning. Penggunaan epoch = 25 berarti model akan dilatih selama 25 putaran penuh. Jumlah ini cukup untuk memberikan model waktu belajar yang memadai tanpa terlalu lama sehingga berisiko overfitting.
 ```sh
 history = model.fit(x = x_train, y = y_train, batch_size = 32, epochs = 25, validation_data = (x_val, y_val))
 ```
@@ -622,18 +639,14 @@ Terapkan kode berikut.
 ```sh
 movie_df = movie_new
 df = movies_ratings.drop(['genres', 'title'], axis=1)
-
-# Mengambil sample user
 user_id = df.userId.sample(1).iloc[0]
 movie_watched_by_user = df[df.userId == user_id]
-
 # Operator bitwise (~), bisa diketahui di sini https://docs.python.org/3/reference/expressions.html
 movie_not_watched = movie_df[~movie_df['id'].isin(movie_watched_by_user.movieId.values)]['id']
 movie_not_watched = list(
     set(movie_not_watched)
     .intersection(set(movie_to_movie_encoded.keys()))
 )
-
 movie_not_watched = [[movie_to_movie_encoded.get(x)] for x in movie_not_watched]
 user_encoder = user_to_user_encoded.get(user_id)
 user_movie_array = np.hstack(
@@ -645,17 +658,14 @@ Kode tersebut bertujuan untuk menyiapkan data rekomendasi film bagi seorang peng
 Selanjutnya, untuk memperoleh rekomendasi restoran, gunakan fungsi model.predict() dari library Keras dengan menerapkan kode berikut.
 ```sh
 ratings = model.predict(user_movie_array).flatten()
-
 top_ratings_indices = ratings.argsort()[-10:][::-1]
 recommended_movie_ids = [
     movie_encoded_to_movie.get(movie_not_watched[x][0]) for x in top_ratings_indices
 ]
-
 print('Showing recommendations for users: {}'.format(user_id))
 print('===' * 9)
 print('Movies with high ratings from user')
 print('----' * 8)
-
 top_movie_user = (
     movie_watched_by_user.sort_values(
         by = 'rating',
@@ -664,15 +674,12 @@ top_movie_user = (
     .head(5)
     .movieId.values
 )
-
 movie_df_rows = movie_df[movie_df['id'].isin(top_movie_user)]
 for row in movie_df_rows.itertuples():
     print(row.movie_title, ':', row.movie_genres)
-
 print('----' * 8)
 print('Top 10 Movies Recommendation')
 print('----' * 8)
-
 recommended_movie = movie_df[movie_df['id'].isin(recommended_movie_ids)]
 for row in recommended_movie.itertuples():
     print(row.movie_title, ':', row.movie_genres)
@@ -703,16 +710,25 @@ Captain Fantastic (2016) : Drama
 Paths of Glory (1957) : Drama|War
 Yi Yi (2000) : Drama
 ```
-Selamat! Anda telah berhasil memberikan rekomendasi kepada user. Sebagai contoh, hasil di atas adalah rekomendasi untuk user dengan id U1013. Dari output tersebut, kita dapat membandingkan antara Resto with high ratings from user dan Top 10 resto recommendation untuk user.
+Kita telah berhasil memberikan rekomendasi kepada user, dan sebagai contoh, hasil di atas adalah rekomendasi untuk user dengan userId 279. Dari output tersebut, kita dapat melihat dua bagian utama: "Movies with high ratings from user", yang menunjukkan daftar film yang sebelumnya diberi rating tinggi oleh user tersebut, dan "Top 10 Movies Recommendation", yang merupakan hasil rekomendasi berdasarkan preferensi user. Menariknya, banyak film yang direkomendasikan memiliki genre yang konsisten dengan preferensi genre user, seperti Drama, War, dan Documentary yang mendominasi daftar rekomendasi. Hal ini menunjukkan bahwa sistem rekomendasi berhasil mengenali pola preferensi pengguna dan memberikan saran yang relevan.
 
-Perhatikanlah, beberapa restoran rekomendasi menyediakan kategori masakan (cuisine) yang sesuai dengan rating user. Kita memperoleh 3 rekomendasi resto dengan kategori ‘cuisine’ Mexican, 2 rekomendasi resto dengan kategori Cafetaria, 1 rekomendasi resto dengan kategori Bar_Pub_Brewery, 1 rekomendasi resto dengan kategori International, 1 rekomendasi resto dengan kategori Japanese, 1 rekomendasi resto dengan kategori Bar, dan 1 resto dengan kategori Contemporary.
+Sampai tahap ini, kita telah berhasil membangun sistem rekomendasi menggunakan teknik Collaborative Filtering, yang mengandalkan data interaksi pengguna (seperti rating) tanpa memerlukan informasi konten film secara langsung. Ingatlah bahwa setiap teknik memiliki pendekatan berbeda — misalnya, Collaborative Filtering memerlukan data rating dari banyak pengguna, sementara Content Based Filtering bekerja hanya dengan data atribut item (seperti genre film) dan preferensi user target tanpa bergantung pada pengguna lain.
 
-Prediksinya cukup sesuai, bukan?
+Untuk menjawab Problem Statements dan Goals pada proses Business Understanding, kita akan mengevaluasi masalah tersebut secara bertahap.
+### Problem Statements - Jawaban
+1. Bagaimana cara merekomendasikan film berdasarkan preferensi konten yang mirip dengan film yang disukai pengguna?
+- Jawaban: Dengan menggunakan pendekatan Content-Based Filtering, sistem menganalisis atribut konten film seperti genre, dan mencocokkannya dengan film-film yang pernah diberi rating tinggi oleh pengguna. Sistem kemudian merekomendasikan film lain yang memiliki kemiripan konten, meskipun belum pernah dirating oleh pengguna lain.
+2. Bagaimana cara memberikan rekomendasi personal kepada pengguna berdasarkan pola rating pengguna lain yang memiliki selera serupa?
+- Jawaban: Dengan menggunakan teknik Collaborative Filtering, sistem mengidentifikasi pengguna lain yang memiliki pola rating mirip dengan user target. Berdasarkan kesamaan ini, sistem dapat memprediksi film yang kemungkinan besar akan disukai oleh user, meskipun user belum pernah menonton atau memberi rating film tersebut.
+3. Bagaimana membandingkan efektivitas pendekatan Content-Based Filtering dan Collaborative Filtering dalam memberikan rekomendasi yang relevan?
+- Jawaban: Efektivitas kedua pendekatan dibandingkan melalui evaluasi metrik kinerja, seperti Root Mean Squared Error (RMSE). Dalam percobaan ini, model Collaborative Filtering mencapai nilai RMSE training sebesar 0.1875 dan RMSE validation sebesar 0.2007, yang menunjukkan model ini mampu memberikan prediksi rating yang cukup akurat. Selain itu, relevansi rekomendasi pada Content Based Filtering dapat dilihat dari kesesuaian genre film yang dicari dengan genre film yang ditampilkan pada tahap Content Based Filtering - Mendapatkan Rekomendasi. Pada tahap tersebut, genre film yang dicari adalah genre film yang dimiliki oleh film Toy Story (1995), lalu sistem menampilkan 5 film dengan genre yang sama.
 
-Sampai di tahap ini, Anda telah berhasil membuat sistem rekomendasi dengan dua teknik, yaitu Content Based Filtering dan Collaborative Filtering. Sistem rekomendasi yang Anda buat telah berhasil memberikan sejumlah rekomendasi restoran yang sesuai dengan preferensi pengguna.
-
-Ingatlah, setiap teknik membutuhkan data yang berbeda dan bekerja dengan cara yang berbeda pula. Misalnya, pada teknik collaborative filtering, Anda membutuhkan data rating dari pengguna. Sedangkan, pada content based filtering, data rating tidak diperlukan.
-
-Jika Anda masih penasaran untuk mencoba membuat sistem rekomendasi dengan data lain atau teknik lain, jangan ragu untuk mencoba, ya!
+### Goals - Jawaban
+1. Membangun sistem rekomendasi menggunakan Content-Based Filtering dengan memanfaatkan informasi genre dari film yang pernah ditonton dan disukai pengguna.
+- Jawaban: Sistem telah berhasil dikembangkan untuk menganalisis genre film yang disukai user, dan menghasilkan rekomendasi berdasarkan kemiripan konten. Hal ini memungkinkan sistem memberikan rekomendasi yang bersifat personal meskipun tanpa mempertimbangkan data pengguna lain.
+2. Membangun sistem rekomendasi menggunakan Collaborative Filtering berbasis matrix factorization yang memanfaatkan pola rating pengguna lain.
+- Jawaban: Sistem rekomendasi dengan pendekatan Collaborative Filtering berhasil dibangun menggunakan teknik embedding dan matrix factorization. Model ini dilatih dengan 25 epoch dan batch size 32, serta dievaluasi menggunakan metrik RMSE, menghasilkan performa yang cukup baik (RMSE validasi 0.2007).
+3. Membandingkan performa dari kedua pendekatan untuk mengetahui mana yang lebih baik dalam konteks MovieLens dataset.
+- Jawaban: Berdasarkan hasil evaluasi, pendekatan Collaborative Filtering memberikan hasil prediksi rating yang lebih akurat (dengan nilai RMSE yang rendah). Namun demikian, pendekatan Content-Based Filtering tetap bermanfaat terutama dalam kondisi cold-start (misalnya pengguna baru), karena tidak bergantung pada rating dari pengguna lain.
 
 **---Ini adalah bagian akhir laporan---**
