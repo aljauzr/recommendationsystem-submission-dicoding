@@ -297,7 +297,7 @@ Output:
 Ok, sekarang data kita sudah bersih. Mari lanjutkan ke tahap berikutnya.
 
 ### Mempersiapkan Data Rating
-Dalam sistem rekomendasi berbasis Collaborative Filtering, penting untuk memastikan satu film memiliki satu baris nilai genre (bisa terdiri dari satu genre atau beberapa genre yang dipisahkan oleh tanda '|'). Tujuannya agar sistem dapat merekomendasikan film yang mirip dengan yang disukai user sebelumnya dan tidak terjadi dobel atau rangkap kategori dalam satu film. Dalam model CBF, kita hanya butuh 1 baris per film untuk mengambil fitur filmnya — tidak perlu semua rating dari user. Maka dari itu, kita perlu menghapus nilai kolom movieId yang duplikat dari dataframe movie_ratings.
+Dalam sistem rekomendasi berbasis Collaborative Filtering, penting untuk memastikan satu film memiliki satu baris nilai genre (bisa terdiri dari satu genre atau beberapa genre yang dipisahkan oleh tanda '|'). Tujuannya agar sistem dapat merekomendasikan film yang mirip dengan yang disukai user sebelumnya dan tidak terjadi dobel atau rangkap kategori dalam satu film. Dalam model CF, kita hanya butuh 1 baris per film untuk mengambil fitur filmnya — tidak perlu semua rating dari user. Maka dari itu, kita perlu menghapus nilai kolom movieId yang duplikat dari dataframe movie_ratings.
 
 Berikutnya, kita bisa melanjutkan ke tahap persiapan. Buatlah variabel bernama preparation untuk persiapan yang mengambil data movies_ratings dari tahap sebelumnya.
 ```sh
