@@ -180,7 +180,6 @@ Output:
 Jumlah user yang memberikan rating:  610
 ```
 Berdasarkan output di atas, diketahui terdapat 610 user yang telah memberikan rating terhadap film. Data ini akan digunakan untuk tahap modelling dengan Collaborative Filtering.
-Pada tahap modelling dengan Content-Based Filtering nanti, data yang dibutuhkan adalah judul film dan genre. Kita akan menghitung kesamaan (similarity) genre dan judul film kemudian membuat rekomendasi berdasarkan kesamaan ini.
 
 ### EDA - Univariate Analysis (ratings)
 Selanjutnya, mari kita eksplorasi data yang akan kita gunakan pada model yaitu data ratings. Pertama, kita lihat seperti apa data pada variabel rating dengan fungsi head().
@@ -297,7 +296,7 @@ Output:
 Ok, sekarang data kita sudah bersih. Mari lanjutkan ke tahap berikutnya.
 
 ### Mempersiapkan Data Rating
-Dalam sistem rekomendasi berbasis Collaborative Filtering, penting untuk memastikan satu film memiliki satu baris nilai genre (bisa terdiri dari satu genre atau beberapa genre yang dipisahkan oleh tanda '|'). Tujuannya agar sistem dapat merekomendasikan film yang mirip dengan yang disukai user sebelumnya dan tidak terjadi dobel atau rangkap kategori dalam satu film. Dalam model CF, kita hanya butuh 1 baris per film untuk mengambil fitur filmnya — tidak perlu semua rating dari user. Maka dari itu, kita perlu menghapus nilai kolom movieId yang duplikat dari dataframe movie_ratings.
+Dalam sistem rekomendasi berbasis Collaborative Filtering, penting untuk memastikan satu film memiliki satu baris nilai genre (bisa terdiri dari satu genre atau beberapa genre yang dipisahkan oleh tanda '|'). Tujuannya agar sistem dapat merekomendasikan film yang mirip dengan yang disukai user sebelumnya dan tidak terjadi dobel atau rangkap kategori dalam satu film. Maka dari itu, kita perlu menghapus nilai kolom movieId yang duplikat dari dataframe movie_ratings.
 
 Berikutnya, kita bisa melanjutkan ke tahap persiapan. Buatlah variabel bernama preparation untuk persiapan yang mengambil data movies_ratings dari tahap sebelumnya.
 ```sh
@@ -358,7 +357,6 @@ Tahap persiapan telah selesai. Berikut adalah hal-hal yang telah kita lakukan pa
 - Memahami data rating yang kita miliki.
 - Menyandikan (encode) fitur ‘userId’ dan ‘movieId’ ke dalam indeks integer.
 - Memetakan ‘userID’ dan ‘movieId’ ke dataframe yang berkaitan.
-- Mengecek beberapa hal dalam data seperti jumlah user, jumlah film, kemudian mengubah nilai rating menjadi float.
 
 Tahap persiapan ini penting dilakukan agar data siap digunakan untuk
 pemodelan. Namun sebelumnya, kita perlu membagi data untuk training dan validasi terlebih dahulu.
